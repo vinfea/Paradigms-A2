@@ -7,106 +7,190 @@ import (
 )
 
 func movePolice(result chan int, pos chan int, n int, m int) {
-	var x, y, move int
+	var x, y, move, r int
 	x = 1
 	y = n
+	var bench = int(float32(n) / float32(n+m) * 100)
 
-	fmt.Printf("Police: (%d, %d)\n", x, y)
+	fmt.Printf("Starting position -- Police: (%d, %d)\n", x, y)
 
-	// using for loop for the time being
-	// before end-game logic is implemented
-	for i := 0; i < 10; i++ {
-		move = rand.Intn(4)
+	end := false
+	for !end {
+		move = rand.Intn(100)
 
-		if move == 0 { // north
-			if (y + 1) <= n {
-				y = y + 1
-			} else {
-				y = y - 1
+		if move <= bench { // vertical
+			move = rand.Intn(3)
+			if move <= 1 { // south
+				if (y - 1) >= 1 {
+					y = y - 1
+				} else {
+					y = y + 1
+				}
+			} else { // north
+				if (y + 1) <= n {
+					y = y + 1
+				} else {
+					y = y - 1
+				}
 			}
-		} else if move == 1 { // east
-			if (x + 1) <= m {
-				x = x + 1
-			} else {
-				x = x - 1
-			}
-		} else if move == 2 { // south
-			if (y - 1) >= 1 {
-				y = y - 1
-			} else {
-				y = y + 1
-			}
-		} else { // west
-			if (x - 1) >= 1 {
-				x = x - 1
-			} else {
-				x = x + 1
+		} else { // horizontal
+			move = rand.Intn(3)
+			if move <= 1 { // east
+				if (x + 1) <= m {
+					x = x + 1
+				} else {
+					x = x - 1
+				}
+			} else { // west
+				if (x - 1) >= 1 {
+					x = x - 1
+				} else {
+					x = x + 1
+				}
 			}
 		}
 
-		pos <- x
-		pos <- y
+		select {
+		case pos <- x:
+			pos <- y
+		case r = <-result:
+			if r != 4 {
+				end = true
+			}
+		}
 	}
 }
 
 func moveThief(result chan int, pos chan int, n int, m int) {
-	var x, y, move int
+	var x, y, move, r int
 	x = m
 	y = 1
+	var bench = int(float32(n) / float32(n+m) * 100)
 
-	fmt.Printf("Thief: (%d, %d)\n", x, y)
+	fmt.Printf("Starting position -- Thief: (%d, %d)\n", x, y)
 
-	// using for loop for the time being
-	// before end-game logic is implemented
-	for i := 0; i < 10; i++ {
-		move = rand.Intn(4)
+	end := false
+	for !end {
+		move = rand.Intn(100)
 
-		if move == 0 { // north
-			if (y + 1) <= n {
-				y = y + 1
-			} else {
-				y = y - 1
+		if move <= bench { // vertical
+			move = rand.Intn(3)
+			if move <= 0 { // south
+				if (y - 1) >= 1 {
+					y = y - 1
+				} else {
+					y = y + 1
+				}
+			} else { // north
+				if (y + 1) <= n {
+					y = y + 1
+				} else {
+					y = y - 1
+				}
 			}
-		} else if move == 1 { // east
-			if (x + 1) <= m {
-				x = x + 1
-			} else {
-				x = x - 1
-			}
-		} else if move == 2 { // south
-			if (y - 1) >= 1 {
-				y = y - 1
-			} else {
-				y = y + 1
-			}
-		} else { // west
-			if (x - 1) >= 1 {
-				x = x - 1
-			} else {
-				x = x + 1
+		} else { // horizontal
+			move = rand.Intn(3)
+			if move <= 0 { // east
+				if (x + 1) <= m {
+					x = x + 1
+				} else {
+					x = x - 1
+				}
+			} else { // west
+				if (x - 1) >= 1 {
+					x = x - 1
+				} else {
+					x = x + 1
+				}
 			}
 		}
 
-		pos <- x
-		pos <- y
+		select {
+		case pos <- x:
+			pos <- y
+		case r = <-result:
+			if r != 4 {
+				end = true
+			}
+		}
 	}
 }
 
-func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int, n int, m int, s int) {
+// Labelling for each player (values passed onto res channels)
+// 1) The game ends, you won the game.
+// 2) The game ends, you lost the game.
+// 3) The game ends in a tie.
+// 4) Your movement was successful, the game continues.
+
+// Labelling for end-game output (value held in res)
+// 1) The Police caught the Thief and won the game.
+// 2) The Thief escaped and won the game.
+// 3) The Police ran out of moves and the Thief won the game.
+// 4) The game ends in a tie.
+
+func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int, n int, s int) {
 	var x1, y1, x2, y2 int
 
-	// using for loop for the time being
-	// before end-game logic is implemented
-	for i := 0; i < 10; i++ {
-		x1 = <-pos1
-		y1 = <-pos1
+	i := 1
+	res := -1
 
-		x2 = <-pos2
-		y2 = <-pos2
+	end := false
+	for !end {
+		if i%2 == 1 { // Police moves on odd rounds
+			x1 = <-pos1
+			y1 = <-pos1
+		} else { // Thief moves on even rounds
+			x2 = <-pos2
+			y2 = <-pos2
+		}
 
-		fmt.Printf("\n---Round %d---\n", i)
-		fmt.Printf("Police at position (%d, %d).\n", x1, y1)
-		fmt.Printf("Thief at position (%d, %d).\n", x2, y2)
+		//fmt.Printf("\n---Round %d---\n", i)
+		//fmt.Printf("Police at position (%d, %d).\n", x1, y1)
+		//fmt.Printf("Thief at position (%d, %d).\n", x2, y2)
+
+		fmt.Printf("(%d, %d)\n", x2, y2)
+
+		// End-game logic
+		if x1 == x2 && y1 == y2 {
+			if x1 == 1 && y1 == n { // tie
+				result1 <- 3
+				result2 <- 3
+				res = 4
+				end = true
+			} else { // police wins
+				result1 <- 1
+				result2 <- 2
+				res = 1
+				end = true
+			}
+		} else {
+			if x2 == 1 && y2 == n { // thief wins
+				result1 <- 2
+				result2 <- 1
+				res = 2
+				end = true
+			} else if i == 2*s { // thief wins
+				result1 <- 2
+				result2 <- 1
+				res = 3
+				end = true
+			} else { // game continues
+				result1 <- 4
+				result2 <- 4
+			}
+		}
+
+		i = i + 1
+	}
+
+	if res == 1 {
+		fmt.Printf("\nThe Police caught the Thief at (%d, %d) and won the game.\n", x1, y1)
+	} else if res == 2 {
+		fmt.Println("\nThe Thief escaped and won the game.")
+	} else if res == 3 {
+		fmt.Println("\nThe Police ran out of moves and the Thief won the game.")
+	} else {
+		fmt.Println("\nThe game ends in a tie.")
 	}
 }
 
@@ -130,7 +214,7 @@ func main() {
 
 	go movePolice(result1, pos1, n, m)
 	go moveThief(result2, pos2, n, m)
-	go controller(result1, pos1, result2, pos2, n, m, s)
+	go controller(result1, pos1, result2, pos2, n, s)
 
 	time.Sleep(2 * time.Second)
 
