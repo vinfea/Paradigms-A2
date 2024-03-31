@@ -50,13 +50,12 @@ func movePolice(result chan int, pos chan int, n int, m int) {
 			}
 		}
 
-		select {
-		case pos <- x:
-			pos <- y
-		case r = <-result:
-			if r != 4 {
-				end = true
-			}
+		pos <- x
+		pos <- y
+
+		r = <-result
+		if r != 0 {
+			end = true
 		}
 	}
 }
@@ -105,22 +104,19 @@ func moveThief(result chan int, pos chan int, n int, m int) {
 			}
 		}
 
-		select {
-		case pos <- x:
-			pos <- y
-		case r = <-result:
-			if r != 4 {
-				end = true
-			}
+		pos <- x
+		pos <- y
+
+		r = <-result
+		if r != 0 {
+			end = true
 		}
 	}
 }
 
 // Labelling for each player (values passed onto res channels)
-// 1) The game ends, you won the game.
-// 2) The game ends, you lost the game.
-// 3) The game ends in a tie.
-// 4) Your movement was successful, the game continues.
+// 1) The game ends.
+// 2) The game continues.
 
 // Labelling for end-game output (value held in res)
 // 1) The Police caught the Thief and won the game.
@@ -128,57 +124,60 @@ func moveThief(result chan int, pos chan int, n int, m int) {
 // 3) The Police ran out of moves and the Thief won the game.
 // 4) The game ends in a tie.
 
-func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int, n int, s int) {
+func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int, n int, m int, s int) {
 	var x1, y1, x2, y2 int
+	var x2_old, y2_old int
+
+	x2_old = m
+	y2_old = 1
 
 	i := 1
 	res := -1
 
 	end := false
 	for !end {
-		if i%2 == 1 { // Police moves on odd rounds
-			x1 = <-pos1
-			y1 = <-pos1
-		} else { // Thief moves on even rounds
-			x2 = <-pos2
-			y2 = <-pos2
-		}
+		x1 = <-pos1
+		y1 = <-pos1
 
-		//fmt.Printf("\n---Round %d---\n", i)
-		//fmt.Printf("Police at position (%d, %d).\n", x1, y1)
-		//fmt.Printf("Thief at position (%d, %d).\n", x2, y2)
+		x2 = <-pos2
+		y2 = <-pos2
 
-		fmt.Printf("(%d, %d)\n", x2, y2)
+		fmt.Printf("\n---Round %d---\n", i)
+		fmt.Printf("Police at position (%d, %d).\n", x1, y1)
+		fmt.Printf("Thief at position (%d, %d).\n", x2, y2)
 
 		// End-game logic
-		if x1 == x2 && y1 == y2 {
+		if (x1 == x2_old && y1 == y2_old) || (x1 == x2 && y1 == y2) {
 			if x1 == 1 && y1 == n { // tie
-				result1 <- 3
-				result2 <- 3
+				result1 <- 1
+				result2 <- 1
 				res = 4
 				end = true
 			} else { // police wins
 				result1 <- 1
-				result2 <- 2
+				result2 <- 1
 				res = 1
 				end = true
 			}
 		} else {
 			if x2 == 1 && y2 == n { // thief wins
-				result1 <- 2
+				result1 <- 1
 				result2 <- 1
 				res = 2
 				end = true
-			} else if i == 2*s { // thief wins
-				result1 <- 2
+			} else if i >= s { // thief wins
+				result1 <- 1
 				result2 <- 1
 				res = 3
 				end = true
 			} else { // game continues
-				result1 <- 4
-				result2 <- 4
+				result1 <- 0
+				result2 <- 0
 			}
 		}
+
+		x2_old = x2
+		y2_old = y2
 
 		i = i + 1
 	}
@@ -189,8 +188,10 @@ func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int
 		fmt.Println("\nThe Thief escaped and won the game.")
 	} else if res == 3 {
 		fmt.Println("\nThe Police ran out of moves and the Thief won the game.")
-	} else {
+	} else if res == 4 {
 		fmt.Println("\nThe game ends in a tie.")
+	} else {
+		fmt.Println("We have an issue.")
 	}
 }
 
@@ -214,7 +215,7 @@ func main() {
 
 	go movePolice(result1, pos1, n, m)
 	go moveThief(result2, pos2, n, m)
-	go controller(result1, pos1, result2, pos2, n, s)
+	go controller(result1, pos1, result2, pos2, n, m, s)
 
 	time.Sleep(2 * time.Second)
 
