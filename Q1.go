@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"time"
+	"sync"
 )
 
-func movePolice(result chan int, pos chan int, n int, m int) {
+func movePolice(result chan int, pos chan int, n int, m int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	var x, y, move, r int
 	x = 1
 	y = n
@@ -60,7 +62,9 @@ func movePolice(result chan int, pos chan int, n int, m int) {
 	}
 }
 
-func moveThief(result chan int, pos chan int, n int, m int) {
+func moveThief(result chan int, pos chan int, n int, m int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	var x, y, move, r int
 	x = m
 	y = 1
@@ -124,7 +128,10 @@ func moveThief(result chan int, pos chan int, n int, m int) {
 // 3) The Police ran out of moves and the Thief won the game.
 // 4) The game ends in a tie.
 
-func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int, n int, m int, s int) {
+func controller(result1 chan int, pos1 chan int, result2 chan int, pos2 chan int, n int, m int, s int,
+	wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	var x1, y1, x2, y2 int
 	var x2_old, y2_old int
 
@@ -209,15 +216,18 @@ func main() {
 	pos1 := make(chan int, 2)
 	pos2 := make(chan int, 2)
 
+	wg := new(sync.WaitGroup)
+
 	fmt.Printf("The 黑猫警长 Game begins with a %d x %d grid.\n", m, n)
 	fmt.Printf("The number of moves for the Police to catch the Thief is %d.\n", s)
 	fmt.Println()
 
-	go movePolice(result1, pos1, n, m)
-	go moveThief(result2, pos2, n, m)
-	go controller(result1, pos1, result2, pos2, n, m, s)
+	wg.Add(3)
+	go movePolice(result1, pos1, n, m, wg)
+	go moveThief(result2, pos2, n, m, wg)
+	go controller(result1, pos1, result2, pos2, n, m, s, wg)
 
-	time.Sleep(2 * time.Second)
+	wg.Wait()
 
 	fmt.Println()
 	fmt.Println("The 黑猫警长 Game is finished!")
